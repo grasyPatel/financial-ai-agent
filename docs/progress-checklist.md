@@ -12,17 +12,17 @@
 - [ ] Test all services running together
 - [ ] Write setup documentation
 
-## Phase 2: Database & Authentication 🔄
-- [ ] Design database schema with Prisma
-- [ ] Set up PostgreSQL
-- [ ] Implement user registration
-- [ ] Implement user login
-- [ ] Add JWT token authentication
-- [ ] Create session management
-- [ ] Add password hashing
-- [ ] Create database migrations
-- [ ] Add basic API protection
-- [ ] Test user flows
+## Phase 2: Database & Authentication ✅
+- [x] Design database schema with Prisma
+- [x] Set up SQLite database 
+- [x] Implement user registration
+- [x] Implement user login
+- [x] Add JWT token authentication
+- [x] Create session management
+- [x] Add password hashing with bcrypt
+- [x] Create database migrations
+- [x] Add JWT Guard API protection
+- [x] Test authentication endpoints
 
 ## Phase 3: Basic Chat Interface 🔄
 - [ ] Design chat UI components
