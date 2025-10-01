@@ -1,0 +1,133 @@
+// Prisma Schema for Deep Finance Research Chatbot
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Will be hashed
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  sessions Session[]
+  threads  Thread[]
+
+  @@map("users")
+}
+
+// User Sessions (for authentication)
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Chat Threads (conversations)
+model Thread {
+  id        String   @id @default(cuid())
+  title     String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+  reports  Report[]
+
+  @@map("threads")
+}
+
+// Individual Messages in Conversations
+model Message {
+  id        String      @id @default(cuid())
+  threadId  String
+  content   String
+  role      MessageRole
+  createdAt DateTime    @default(now())
+
+  // AI-specific fields
+  reasoning String? // For showing "thinking" process
+  sources   Source[] // Citations for this message
+
+  // Relationships
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// Sources/Citations for Research
+model Source {
+  id          String  @id @default(cuid())
+  url         String
+  title       String
+  snippet     String?
+  domain      String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  messages Message[]
+  reports  Report[]
+
+  @@map("sources")
+}
+
+// Generated Reports
+model Report {
+  id        String   @id @default(cuid())
+  threadId  String
+  title     String
+  content   String   // Markdown content
+  summary   String?
+  createdAt DateTime @default(now())
+
+  // Relationships
+  thread  Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sources Source[]
+
+  @@map("reports")
+}
+
+// Long-term Memory (Vector embeddings)
+model Memory {
+  id        String     @id @default(cuid())
+  userId    String
+  content   String     // Original text
+  embedding String?    // Vector embedding (JSON)
+  type      MemoryType
+  metadata  String?    // JSON metadata
+  createdAt DateTime   @default(now())
+
+  @@map("memories")
+}
+
+// Enums
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum MemoryType {
+  CONVERSATION
+  RESEARCH
+  USER_PREFERENCE
+  DOMAIN_KNOWLEDGE
+}
