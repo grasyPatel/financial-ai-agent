@@ -8,21 +8,7 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-// User Management
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String   // Will be hashed
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  // Relationships
-  sessions Session[]
-  threads  Thread[]
-
-  @@map("users")
-}
 
 // User Sessions (for authentication)
 model Session {
@@ -62,9 +48,24 @@ model Message {
   role      MessageRole
   createdAt DateTime    @default(now())
 
-  // AI-specific fields
-  reasoning String? // For showing "thinking" process
-  sources   Source[] // Citations for this message
+  // Enhanced AI-specific fields
+  reasoning        String? // For showing "thinking" process
+  confidence       Float?  // AI confidence score (0.0-1.0)
+  processingTimeMs Int?    // Time taken to generate response
+  
+  // Financial analysis metadata
+  analysisType     String? // Type of analysis performed (stock, comparison, sector)
+  stockSymbols     String? // JSON array of stock symbols analyzed
+  financialData    String? // JSON of key financial metrics
+  insights         String? // JSON array of key insights generated
+  
+  // Research tracking
+  webSearchUsed    Boolean @default(false) // Whether web search was used
+  realTimeData     Boolean @default(false) // Whether real-time data was fetched
+  sourcesCount     Int?    // Number of sources used
+  
+  // Citations and sources
+  sources   Source[] // Enhanced citations for this message
 
   // Relationships
   thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
@@ -72,15 +73,32 @@ model Message {
   @@map("messages")
 }
 
-// Sources/Citations for Research
+// Enhanced Sources/Citations for Financial Research
 model Source {
-  id          String  @id @default(cuid())
-  url         String
-  title       String
-  snippet     String?
-  domain      String?
-  publishedAt DateTime?
-  createdAt   DateTime @default(now())
+  id          String     @id @default(cuid())
+  url         String?    // URL (optional for some source types)
+  title       String     // Source title/name
+  snippet     String?    // Key excerpt or summary
+  domain      String?    // Website domain (e.g., "yahoo.com", "sec.gov")
+  publishedAt DateTime?  // When the source data was published
+  createdAt   DateTime   @default(now())
+  
+  // Enhanced source classification
+  sourceType  SourceType // Type of financial data source
+  reliability Int        @default(5) // Reliability score 1-10
+  dataType    String?    // Type of data (e.g., "stock_price", "earnings", "news")
+  
+  // Financial-specific fields
+  ticker      String?    // Stock ticker symbol if applicable
+  exchange    String?    // Stock exchange (NYSE, NASDAQ, etc.)
+  marketCap   Float?     // Market capitalization if applicable
+  sector      String?    // Industry sector
+  
+  // Metadata for better tracking
+  apiSource   String?    // API source name (Yahoo Finance, Alpha Vantage, etc.)
+  fetchedAt   DateTime?  // When this data was last fetched
+  isRealTime  Boolean    @default(false) // Is this real-time data?
+  confidence  Float?     // Confidence level in the data (0.0-1.0)
 
   // Relationships
   messages Message[]
@@ -118,6 +136,61 @@ model Memory {
   @@map("memories")
 }
 
+// Financial Analysis Sessions (for detailed tracking)
+model AnalysisSession {
+  id                String   @id @default(cuid())
+  userId            String
+  query             String   // Original user query
+  sessionId         String   // Session identifier
+  analysisType      String   // Type of analysis (stock, comparison, sector)
+  symbolsAnalyzed   String   // JSON array of symbols
+  
+  // Performance metrics
+  totalProcessingMs Int?     // Total processing time
+  sourcesUsed       Int?     // Number of sources consulted
+  confidenceScore   Float?   // Overall confidence (0.0-1.0)
+  
+  // Results summary
+  keyFindings       String?  // JSON array of key findings
+  recommendations   String?  // Investment recommendations
+  riskAssessment    String?  // Risk analysis summary
+  
+  // Metadata
+  ipAddress         String?  // User IP for rate limiting
+  userAgent         String?  // Browser info
+  apiVersion        String?  // API version used
+  
+  createdAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  // Relationships
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("analysis_sessions")
+}
+
+// Enhanced User model relationship
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // Will be hashed
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Usage analytics
+  totalQueries      Int      @default(0)
+  lastActiveAt      DateTime?
+  subscriptionTier  String?  // Premium, Pro, Free, etc.
+
+  // Relationships
+  sessions          Session[]
+  threads           Thread[]
+  analysisSessions  AnalysisSession[]
+
+  @@map("users")
+}
+
 // Enums
 enum MessageRole {
   USER
@@ -130,4 +203,45 @@ enum MemoryType {
   RESEARCH
   USER_PREFERENCE
   DOMAIN_KNOWLEDGE
+}
+
+enum SourceType {
+  // Financial data providers
+  YAHOO_FINANCE      // Yahoo Finance API
+  SEC_FILING         // SEC official filings
+  BLOOMBERG          // Bloomberg data
+  REUTERS            // Reuters financial news
+  ALPHA_VANTAGE      // Alpha Vantage API
+  FINNHUB            // Finnhub financial data
+  
+  // News and analysis
+  FINANCIAL_NEWS     // General financial news
+  ANALYST_REPORT     // Professional analyst reports
+  EARNINGS_CALL      // Earnings call transcripts
+  PRESS_RELEASE      // Company press releases
+  
+  // Market data
+  REAL_TIME_QUOTE    // Real-time stock quotes
+  HISTORICAL_DATA    // Historical price data
+  OPTIONS_DATA       // Options chain data
+  INSIDER_TRADING    // Insider trading data
+  
+  // Web sources
+  WEB_SEARCH         // General web search results
+  COMPANY_WEBSITE    // Official company websites
+  REGULATORY_FILING  // Regulatory filings (10-K, 10-Q, etc.)
+  
+  // Technical analysis
+  TECHNICAL_INDICATOR // Technical analysis indicators
+  PEER_COMPARISON     // Peer comparison data
+  SECTOR_ANALYSIS     // Industry sector analysis
+  
+  // Alternative data
+  SOCIAL_SENTIMENT    // Social media sentiment
+  SATELLITE_DATA      // Satellite/alternative data
+  ECONOMIC_INDICATOR  // Economic indicators
+  
+  // Internal
+  AI_ANALYSIS         // AI-generated insights
+  CACHED_DATA         // Previously cached information
 }

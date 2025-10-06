@@ -1,103 +1,223 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
+  # ===========================================
+  # DATABASE SERVICES
+  # ===========================================
+  
+  # PostgreSQL Database (User data, sessions, threads)
   postgres:
     image: postgres:15-alpine
-    container_name: finance-chatbot-db
-    restart: unless-stopped
+    container_name: deqode-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: finance_chatbot
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: deqode_finance
+      POSTGRES_USER: deqode_user
+      POSTGRES_PASSWORD: secure_password_change_in_production
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     networks:
-      - finance-chatbot-network
+      - deqode-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deqode_user -d deqode_finance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
-  # Redis for caching and streaming
+  # Redis Database (Short-term memory, caching, streaming state)
   redis:
     image: redis:7-alpine
-    container_name: finance-chatbot-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
+    container_name: deqode-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
-    networks:
-      - finance-chatbot-network
-
-  # Backend API (NestJS)
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: finance-chatbot-backend
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/finance_chatbot
-      - REDIS_URL=redis://redis:6379
     ports:
-      - "8000:8000"
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - "6379:6379"
     networks:
-      - finance-chatbot-network
-    command: npm run start:dev
+      - deqode-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
-  # AI Agents (Python)
+  # ===========================================
+  # APPLICATION SERVICES
+  # ===========================================
+  
+  # AI Agents Service (Enhanced with Memory Pipeline)
   agents:
     build:
       context: ./agents
       dockerfile: Dockerfile
-    container_name: finance-chatbot-agents
-    restart: unless-stopped
+      args:
+        - PYTHON_VERSION=3.11
+    container_name: deqode-agents
     environment:
-      - PYTHON_ENV=development
+      # Core Configuration
+      - PYTHON_ENV=production
+      - LOG_LEVEL=INFO
+      
+      # Database Connections
       - REDIS_URL=redis://redis:6379
-    ports:
-      - "8001:8001"
-    depends_on:
-      - redis
+      - DATABASE_URL=postgresql://deqode_user:secure_password_change_in_production@postgres:5432/deqode_finance
+      
+      # AI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4-turbo-preview}
+      - OPENAI_TEMPERATURE=0.1
+      
+      # Memory System Configuration
+      - VECTOR_BACKEND=${VECTOR_BACKEND:-memory}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_INDEX=${PINECONE_INDEX:-deqode-finance-memory}
+      - USE_OPENAI_EMBEDDINGS=${USE_OPENAI_EMBEDDINGS:-false}
+      - EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+      
+      # Enhanced Research Configuration
+      - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-true}
+      - ENABLE_MEMORY=${ENABLE_MEMORY:-true}
+      - ENABLE_LANGGRAPH=${ENABLE_LANGGRAPH:-true}
+      - MAX_SOURCES=${MAX_SOURCES:-15}
+      - MIN_RELEVANCE_SCORE=${MIN_RELEVANCE_SCORE:-0.7}
+      
+      # Web Search APIs
+      - DUCKDUCKGO_ENABLED=${DUCKDUCKGO_ENABLED:-true}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - NEWS_API_KEY=${NEWS_API_KEY}
+      
+      # Financial Data APIs
+      - YAHOO_FINANCE_ENABLED=true
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - POLYGON_API_KEY=${POLYGON_API_KEY}
     volumes:
       - ./agents:/app
+      - agents_cache:/app/.cache
+    ports:
+      - "9000:9000"
     networks:
-      - finance-chatbot-network
-    command: python main.py
+      - deqode-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
-  # Frontend (Next.js)
+  # Backend API Service (NestJS)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: deqode-backend
+    environment:
+      # Core Configuration
+      - NODE_ENV=production
+      - PORT=8000
+      
+      # Database Configuration
+      - DATABASE_URL=postgresql://deqode_user:secure_password_change_in_production@postgres:5432/deqode_finance
+      - REDIS_URL=redis://redis:6379
+      
+      # Authentication
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      
+      # AI Agents Integration
+      - AGENTS_SERVICE_URL=http://agents:9000
+      
+      # CORS Configuration
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    ports:
+      - "8000:8000"
+    networks:
+      - deqode-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      agents:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend Application (Next.js)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: finance-chatbot-frontend
-    restart: unless-stopped
+    container_name: deqode-frontend
     environment:
-      - NODE_ENV=development
+      # Core Configuration
+      - NODE_ENV=production
+      - PORT=3000
+      
+      # Backend Integration
       - NEXT_PUBLIC_API_URL=http://localhost:8000
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+      - NEXT_PUBLIC_AGENTS_URL=http://localhost:9000
+      
+      # Feature Flags
+      - NEXT_PUBLIC_ENABLE_STREAMING=${ENABLE_STREAMING:-true}
+      - NEXT_PUBLIC_ENABLE_MEMORY=${ENABLE_MEMORY:-true}
+      - NEXT_PUBLIC_ENABLE_EXPORT=${ENABLE_EXPORT_FEATURES:-true}
     volumes:
       - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
+    ports:
+      - "3000:3000"
     networks:
-      - finance-chatbot-network
-    command: npm run dev
+      - deqode-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
+# ===========================================
+# VOLUMES
+# ===========================================
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+  agents_cache:
+    driver: local
+  backend_node_modules:
+    driver: local
+  frontend_node_modules:
+    driver: local
+  frontend_next:
+    driver: local
 
+# ===========================================
+# NETWORKS
+# ===========================================
 networks:
-  finance-chatbot-network:
+  deqode-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

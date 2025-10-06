@@ -1,15 +1,11 @@
-#!/bin/bash
 
-# Deep Finance Research Chatbot - Setup Script
-# This script sets up the complete development environment
 
 echo "🚀 Setting up Deep Finance Research Chatbot..."
 echo "================================================"
 
-# Check if required tools are installed
 echo "🔍 Checking prerequisites..."
 
-# Check Node.js
+
 if ! command -v node &> /dev/null; then
     echo "❌ Node.js not found. Please install Node.js 18+ from https://nodejs.org"
     exit 1
