@@ -614,23 +614,5 @@ ENABLE_MEMORY=true
 ENABLE_LANGGRAPH=true
 ```
 
-## 📄 **License & Support**
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-### **Getting Help**
-- 🐛 **Bug Reports**: Create an issue in this repository
-- 💡 **Feature Requests**: Submit enhancement proposals
-- 📖 **Documentation**: Check API docs at `/api` endpoint
-- 💬 **Discussions**: Use GitHub Discussions for questions
-
-### **Contributing**
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`  
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
----
 
 **� Built for Professional Financial Research** | **⚡ Powered by Modern AI Technology** | **💼 Production Ready**
