@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -147,7 +147,7 @@ export default function ChatPage() {
   }, [authLoading, isAuthenticated, router]);
 
   // API functions
-  const apiCall = async (url: string, options: RequestInit = {}) => {
+  const apiCall = useCallback(async (url: string, options: RequestInit = {}) => {
     if (!token) {
       throw new Error('No authentication token found');
     }
@@ -166,23 +166,18 @@ export default function ChatPage() {
     }
 
     return response.json();
-  };
+  }, [token]);
 
-  const loadThreads = async () => {
+  const loadThreads = useCallback(async () => {
     try {
       const threadsData = await apiCall('/chat/threads');
       setThreads(threadsData);
-      
-      // If no current thread and threads exist, select the most recent one
-      if (!currentThread && threadsData.length > 0) {
-        await selectThread(threadsData[0]);
-      }
     } catch (error) {
       // Error loading threads - handle silently
     }
-  };
+  }, [apiCall]);
 
-  const selectThread = async (thread: Thread) => {
+  const selectThread = useCallback(async (thread: Thread) => {
     setCurrentThread(thread);
     setLoadingHistory(true);
     try {
@@ -204,9 +199,9 @@ export default function ChatPage() {
     } finally {
       setLoadingHistory(false);
     }
-  };
+  }, [apiCall]);
 
-  const createNewThread = async () => {
+  const createNewThread = useCallback(async () => {
     try {
       const newThread = await apiCall('/chat/threads', {
         method: 'POST',
@@ -225,9 +220,9 @@ export default function ChatPage() {
     } catch (error) {
       // Error creating new thread - handle silently
     }
-  };
+  }, [apiCall]);
 
-  const saveMessage = async (threadId: string, content: string, role: 'USER' | 'ASSISTANT') => {
+  const saveMessage = useCallback(async (threadId: string, content: string, role: 'USER' | 'ASSISTANT') => {
     try {
       await apiCall(`/chat/threads/${threadId}/messages`, {
         method: 'POST',
@@ -239,7 +234,7 @@ export default function ChatPage() {
     } catch (error) {
       // Error saving message - handle silently
     }
-  };
+  }, [apiCall]);
 
   // Load threads when authenticated
   useEffect(() => {
@@ -247,6 +242,13 @@ export default function ChatPage() {
       loadThreads();
     }
   }, [isAuthenticated, token, loadThreads]);
+
+  // Auto-select first thread if no current thread
+  useEffect(() => {
+    if (!currentThread && threads.length > 0) {
+      selectThread(threads[0]);
+    }
+  }, [currentThread, threads, selectThread]);
 
   const handleSendMessage = async (messageText?: string) => {
     const messageToSend = messageText || input.trim();

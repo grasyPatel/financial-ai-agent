@@ -877,7 +877,8 @@ class AIResearchService:
         
         try:
             # Extract potential stock symbols from query
-            symbols = self._extract_symbols(request.query, request.symbols)
+            provided_symbols = getattr(request, 'symbols', None)
+            symbols = self._extract_symbols(request.query, provided_symbols)
             
             # Fetch financial data for identified symbols
             financial_data = []
@@ -1962,7 +1963,9 @@ async def streaming_research_endpoint(request: StreamingResearchRequest):
                 
                 # Use enhanced comprehensive analysis
                 try:
-                    result = await ai_service.analyze_query(request)
+                    # Convert StreamingResearchRequest to ResearchRequest for compatibility
+                    basic_request = ResearchRequest(query=request.query)
+                    result = await ai_service.analyze_query(basic_request)
                     comprehensive_answer = result.answer
                     
                     # Store insights in memory if available
