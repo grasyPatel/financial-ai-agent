@@ -10,6 +10,10 @@
 
 A sophisticated AI-powered financial research platform featuring real-time market analysis, streaming responses, intelligent memory systems, and comprehensive source tracking. Built with modern tech stack for professional financial analysis and investment research.
 
+[![Watch Demo on YouTube](https://img.shields.io/badge/Watch_Demo-YouTube-red?logo=youtube&logoColor=white)](https://youtu.be/fAJ7rtZCZdo?si=waD25VIQgOERzZcH)
+
+
+
 ## 🌟 Features
 
 ### 🎯 **Core Capabilities**
